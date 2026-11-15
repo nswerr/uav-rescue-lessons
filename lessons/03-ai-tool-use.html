@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>03 讓 AI 呼叫找路工具｜UAV 搜救任務規劃講義</title>
+  <meta name="description" content="語言模型負責聽懂指令，Python 負責計算，兩者用工具呼叫分工。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <script src="../data/lessons.js" defer></script>
+  <script src="../assets/js/main.js" defer></script>
+</head>
+<body data-lesson-id="03">
+
+<header class="site-header">
+  <div class="inner">
+    <a class="brand" href="../index.html"><span class="brand-mark">UAV</span>搜救任務規劃講義</a>
+    <nav><a href="../index.html">全部講義</a><a href="https://github.com/nswerr/uav-rescue-lessons">GitHub</a></nav>
+  </div>
+</header>
+
+<div class="lesson-layout">
+  <main>
+    <header class="lesson-head">
+      <p class="kicker">AI 整合 ・ LESSON 03</p>
+      <h1>讓 AI 呼叫找路工具</h1>
+      <p class="lead">使用者想說的是「從第 4 列第 1 欄出發，到第 4 列第 8 欄，避開禁飛格」，而不是填表單。這篇說明怎麼讓語言模型聽懂這句話，卻把真正的計算交給第 02 篇的 BFS。</p>
+      <div class="info-bar">
+        <div><b>難度</b>基礎</div>
+        <div><b>閱讀</b>15 分鐘</div>
+        <div><b>先備</b>第 02 篇</div>
+      </div>
+    </header>
+
+    <section class="goals">
+      <h2>學習目標</h2>
+      <ul>
+        <li>能說明為什麼找路要交給程式，而不是讓模型直接回答路徑。</li>
+        <li>能寫出 <code>find_path</code> 工具的參數定義與回傳格式。</li>
+        <li>能規劃缺少座標或 API 斷線時的備案。</li>
+      </ul>
+    </section>
+
+    <article>
+      <h2 id="division">一　誰負責什麼</h2>
+      <p>語言模型很會理解人話，但不擅長保證每一步都算對：它可能說出「共 9 步」，實際卻穿過了禁飛格。所以我們採用工具使用（Tool Use）：模型只負責把指令轉成參數，計算由 Python 完成。</p>
+      <table class="data">
+        <thead><tr><th>角色</th><th>負責的事</th><th>不做的事</th></tr></thead>
+        <tbody>
+          <tr><td>語言模型</td><td>從句子取出起點、目標座標；決定要不要呼叫工具；用自然語言說明結果</td><td>自己算路徑或步數</td></tr>
+          <tr><td>Python 工具</td><td>檢查座標範圍與禁飛格；執行 BFS；回傳路徑與步數</td><td>解讀使用者的語氣或意圖</td></tr>
+          <tr><td>Gradio 介面</td><td>收集輸入、讓使用者編輯禁飛格、依工具結果畫地圖</td><td>修改計算結果</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="flow">二　一次對話的流程</h2>
+      <ol class="flow">
+        <li><b>輸入任務</b><span>一句話描述起點與待查點</span></li>
+        <li><b>模型擷取參數</b><span>提出 find_path 工具呼叫</span></li>
+        <li><b>Python 計算</b><span>驗證輸入並執行 BFS</span></li>
+        <li><b>回覆與畫圖</b><span>模型解說，介面依結果畫路線</span></li>
+      </ol>
+      <div class="callout tip"><strong>畫面只相信工具結果</strong><p>地圖上的路線一律由工具回傳的座標畫出，不從模型的文字裡解析。這樣就算模型說錯，畫面也不會錯。</p></div>
+
+      <h2 id="schema">三　定義 find_path 工具</h2>
+      <p>工具定義告訴模型「有這個函式、需要哪些參數」。下面是支援工具呼叫的 API 常見的 JSON 結構（Groq 等相容 OpenAI 格式的服務都接受這種寫法）：</p>
+<pre><code class="lang-json">{
+  "type": "function",
+  "function": {
+    "name": "find_path",
+    "description": "在目前的搜救地圖上，用 BFS 找出起點到待查點的最短路徑",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "start": {"type": "array", "items": {"type": "integer"}, "description": "[列, 欄]，從 1 開始"},
+        "goal":  {"type": "array", "items": {"type": "integer"}, "description": "[列, 欄]，從 1 開始"}
+      },
+      "required": ["start", "goal"]
+    }
+  }
+}</code></pre>
+      <p>注意禁飛格<strong>不是</strong>參數：工具每次都直接讀介面上目前的地圖，避免模型漏傳或亂改障礙資料。</p>
+
+      <h2 id="result">四　統一的回傳格式</h2>
+      <p>不管成功或失敗，工具都回傳同樣形狀的資料，讓模型和介面都好處理。</p>
+      <table class="data">
+        <thead><tr><th>status</th><th>其他欄位</th><th>何時出現</th></tr></thead>
+        <tbody>
+          <tr><td><code>ok</code></td><td><code>path</code>、<code>steps</code></td><td>找到路，例如範例地圖回傳 <code>steps: 7</code></td></tr>
+          <tr><td><code>no_path</code></td><td><code>message</code></td><td>起點和待查點被禁飛格完全隔開</td></tr>
+          <tr><td><code>invalid_input</code></td><td><code>message</code></td><td>座標超出地圖，或起點／待查點本身是禁飛格</td></tr>
+        </tbody>
+      </table>
+      <p>下面的地圖就是工具在預設狀態下會算出的結果。封鎖一些格子，想想看它會回傳哪一種 status。</p>
+      <div class="grid-map" data-rows="8" data-cols="8" data-start="4,1" data-goal="4,8"
+           data-blocked="1,4;2,4;3,4;5,4;8,4" data-title="工具看到的地圖" data-interactive="true"></div>
+
+      <h2 id="fallback">五　缺資料與斷線時的備案</h2>
+      <h3>指令缺少座標</h3>
+      <p>例如使用者只說「幫我去待查點」。這時模型不應該猜座標，而是請使用者補上起點。可以在系統提示（system prompt）中寫明：「缺少起點或目標時，先詢問，不要呼叫工具」。</p>
+      <h3>模型 API 暫時無法連線</h3>
+      <p>介面另外保留起點、目標兩個輸入欄，直接呼叫同一個 Python 函式。展示時就算網路出問題，地圖與改道結果仍能照常示範。</p>
+      <div class="callout warn"><strong>不要讓模型繞過工具</strong><p>若模型直接用文字回答路徑而沒有呼叫工具，介面應提示「未取得工具結果」，而不是把文字當成答案。</p></div>
+
+      <section class="recap">
+        <h2>重點回顧</h2>
+        <ul>
+          <li>模型負責理解與說明，Python 負責計算，畫面只採信工具回傳的座標。</li>
+          <li><code>find_path</code> 只需要 <code>start</code>、<code>goal</code>，禁飛格由工具自己讀取。</li>
+          <li>回傳一律帶 <code>status</code>：<code>ok</code>、<code>no_path</code>、<code>invalid_input</code>。</li>
+          <li>缺座標就詢問；API 斷線就改用表單直接呼叫同一個函式。</li>
+        </ul>
+      </section>
+    </article>
+
+    <nav class="pager" data-pager></nav>
+  </main>
+
+  <aside class="toc" data-toc></aside>
+</div>
+
+<footer class="site-footer">
+  <div class="inner">
+    <span>UAV 搜救任務規劃講義 ・ 生成式 AI 課程作業</span>
+    <span>依 CLAUDE.md 規則維護</span>
+  </div>
+</footer>
+</body>
+</html>

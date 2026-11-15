@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>01 把搜救區域變成格子地圖｜UAV 搜救任務規劃講義</title>
+  <meta name="description" content="用列、欄座標描述起點、待查點與禁飛格，建立找路的共同語言。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <script src="../data/lessons.js" defer></script>
+  <script src="../assets/js/main.js" defer></script>
+</head>
+<body data-lesson-id="01">
+
+<header class="site-header">
+  <div class="inner">
+    <a class="brand" href="../index.html"><span class="brand-mark">UAV</span>搜救任務規劃講義</a>
+    <nav><a href="../index.html">全部講義</a><a href="https://github.com/nswerr/uav-rescue-lessons">GitHub</a></nav>
+  </div>
+</header>
+
+<div class="lesson-layout">
+  <main>
+    <header class="lesson-head">
+      <p class="kicker">任務基礎 ・ LESSON 01</p>
+      <h1>把搜救區域變成格子地圖</h1>
+      <p class="lead">無人機要去哪裡、哪裡不能飛，電腦都看不懂「山谷左邊那棟倉庫」。這篇先把真實的搜救區域切成格子，讓人、程式和 AI 用同一套座標溝通。</p>
+      <div class="info-bar">
+        <div><b>難度</b>入門</div>
+        <div><b>閱讀</b>10 分鐘</div>
+        <div><b>先備</b>會寫 Python 串列</div>
+      </div>
+    </header>
+
+    <section class="goals">
+      <h2>學習目標</h2>
+      <ul>
+        <li>能用「列,欄」座標標出起點、待查點與禁飛格。</li>
+        <li>能說明四方向移動與「每步成本相同」這兩個簡化假設。</li>
+        <li>能把一張 8×8 地圖寫成 Python 資料。</li>
+      </ul>
+    </section>
+
+    <article>
+      <h2 id="why-grid">一　為什麼要切成格子</h2>
+      <p>真實的搜救區域是連續的：無人機可以停在任何一點、朝任何方向飛。這對人很直覺，對程式卻太自由了——可能的位置有無限多個，沒辦法一個一個檢查。</p>
+      <p>最常見的做法是把區域切成大小相同的方格，每一格只有兩種狀態：<strong>可以飛</strong>或<strong>不能飛</strong>。如此一來，「規劃路線」就變成「在格子之間找一條連續的路」，問題一下子就有限、可以計算了。</p>
+      <div class="callout note"><strong>格子要切多細？</strong><p>格子越小越接近真實地形，但格子數量會變多、計算變慢。期末專案的第一版先用 8×8＝64 格，目的是讓展示時看得清楚、改得動。</p></div>
+
+      <h2 id="coordinates">二　座標的寫法：先列後欄</h2>
+      <p>本站所有講義都用 <strong>「列,欄」</strong>，而且<strong>從 1 開始</strong>：列是由上往下數，欄是由左往右數。例如「第 4 列第 1 欄」寫成 <code>4,1</code>。</p>
+      <table class="data">
+        <thead><tr><th>名稱</th><th>代號</th><th>範例座標</th><th>意義</th></tr></thead>
+        <tbody>
+          <tr><td>起點</td><td>S</td><td><code>4,1</code></td><td>無人機起飛的位置</td></tr>
+          <tr><td>待查點</td><td>T</td><td><code>4,8</code></td><td>需要前往確認的位置，例如回報有人受困的地點</td></tr>
+          <tr><td>禁飛格</td><td>深灰色</td><td><code>1,4;2,4;3,4</code></td><td>不能進入的格子，多個座標用分號分隔</td></tr>
+        </tbody>
+      </table>
+      <p>下面就是期末提案用的範例地圖。第 4 欄有一排禁飛格，只在第 4、6、7 列留了缺口。</p>
+
+      <div class="grid-map" data-rows="8" data-cols="8" data-start="4,1" data-goal="4,8"
+           data-blocked="1,4;2,4;3,4;5,4;8,4" data-title="範例地圖：8×8" data-interactive="true"></div>
+
+      <div class="callout tip"><strong>動手試試</strong><p>點第 4 列第 4 欄，把它變成禁飛格，看看路線怎麼繞；再把第 6、7 列第 4 欄也封住，左右兩邊就完全隔開了。路線怎麼算出來的，下一篇會拆開講。</p></div>
+
+      <h2 id="rules">三　兩個簡化假設</h2>
+      <h3>只能上下左右移動</h3>
+      <p>每一步只能移到相鄰的上、下、左、右一格，不走斜線。這樣「步數」就等於格子之間的曼哈頓距離（沒有障礙時），容易手算驗證。</p>
+      <h3>每一步的成本都一樣</h3>
+      <p>不管飛到哪一格，都算 1 步。真實世界裡逆風、爬升會更耗電，但第一版先不考慮，讓我們能專心確認「找路」本身是對的。</p>
+      <div class="callout warn"><strong>禁飛格可能代表什麼</strong><p>高壓電塔、火場上空、管制空域、建築物。這些在格子地圖上都一樣：不能進入，也不能穿過。</p></div>
+
+      <h2 id="python">四　把地圖寫成 Python</h2>
+      <p>最簡單的表示法是記下大小、起終點，再用一個集合（set）存所有禁飛格。集合查詢「這格是不是禁飛」很快，之後寫 BFS 會常常用到。</p>
+<pre><code class="lang-python">ROWS, COLS = 8, 8
+start = (4, 1)   # (列, 欄)，從 1 開始
+goal  = (4, 8)
+blocked = {(1, 4), (2, 4), (3, 4), (5, 4), (8, 4)}
+
+def is_free(cell):
+    r, c = cell
+    inside = 1 &lt;= r &lt;= ROWS and 1 &lt;= c &lt;= COLS
+    return inside and cell not in blocked
+
+print(is_free((4, 4)))  # True：第 4 列第 4 欄目前開放
+print(is_free((5, 4)))  # False：禁飛格</code></pre>
+      <div class="callout warn"><strong>小心從 0 還是從 1 開始</strong><p>Python 的串列索引從 0 開始，但我們給人看的座標從 1 開始。如果之後改用二維串列存地圖，記得在存取時減 1，並在畫面上顯示時加回來。</p></div>
+
+      <section class="recap">
+        <h2>重點回顧</h2>
+        <ul>
+          <li>把連續空間切成格子，找路問題就變成有限、可計算的問題。</li>
+          <li>座標一律寫「列,欄」，從 1 開始，例如第 4 列第 1 欄是 <code>4,1</code>。</li>
+          <li>第一版假設只能上下左右移動、每步成本相同。</li>
+          <li>禁飛格用 Python 集合存放，用 <code>is_free()</code> 檢查是否可以進入。</li>
+        </ul>
+      </section>
+    </article>
+
+    <nav class="pager" data-pager></nav>
+  </main>
+
+  <aside class="toc" data-toc></aside>
+</div>
+
+<footer class="site-footer">
+  <div class="inner">
+    <span>UAV 搜救任務規劃講義 ・ 生成式 AI 課程作業</span>
+    <span>依 CLAUDE.md 規則維護</span>
+  </div>
+</footer>
+</body>
+</html>

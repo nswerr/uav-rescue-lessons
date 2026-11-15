@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UAV 搜救任務規劃講義</title>
+  <meta name="description" content="從格子地圖、BFS 最短路徑、AI 工具呼叫到多無人機任務分配，一步步理解無人機搜救任務規劃。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <script src="data/lessons.js" defer></script>
+  <script src="assets/js/main.js" defer></script>
+</head>
+<body data-page="index">
+
+<header class="site-header">
+  <div class="inner">
+    <a class="brand" href="index.html"><span class="brand-mark">UAV</span>搜救任務規劃講義</a>
+    <nav><a href="#lessons">全部講義</a><a href="https://github.com/nswerr/uav-rescue-lessons">GitHub</a></nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="inner hero-grid">
+    <div>
+      <p class="kicker">生成式 AI 課程 ・ 期末專案延伸講義</p>
+      <h1>UAV 搜救任務規劃講義</h1>
+      <p class="lead">把《無人機搜救任務規劃助手》用到的知識拆成一篇篇短講義：先把搜救區域變成格子地圖，再用 BFS 找最短航線，接著讓 AI 透過工具呼叫來規劃，最後擴充到多架無人機。每篇都有可以親手點擊的地圖。</p>
+      <div class="stats">
+        <div><b data-stat="count">–</b>篇講義</div>
+        <div><b data-stat="units">–</b>個單元</div>
+        <div><b data-stat="minutes">–</b>分鐘讀完</div>
+      </div>
+    </div>
+    <div class="grid-map" data-rows="8" data-cols="8" data-start="4,1" data-goal="4,8"
+         data-blocked="1,4;2,4;3,4;5,4;8,4" data-title="試試看：點一下第 4 列第 4 欄" data-interactive="true"></div>
+  </div>
+</section>
+
+<main class="page" id="lessons">
+  <div id="lesson-list"></div>
+
+  <section class="how">
+    <h2>這個網站怎麼長大？</h2>
+    <p>所有講義都依照專案根目錄的 <code>CLAUDE.md</code> 撰寫：固定的檔名規則、頁面結構、元件與檢查腳本。要新增一篇講義時，只要請 AI「依照 CLAUDE.md 新增第 N 篇」，它就會複製範本、寫內容、登記到 <code>data/lessons.js</code>，首頁和上下篇導覽會自動更新。</p>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="inner">
+    <span>UAV 搜救任務規劃講義 ・ 生成式 AI 課程作業</span>
+    <span>依 CLAUDE.md 規則維護</span>
+  </div>
+</footer>
+</body>
+</html>

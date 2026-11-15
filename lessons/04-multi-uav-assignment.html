@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>04 多架無人機怎麼分配目標｜UAV 搜救任務規劃講義</title>
+  <meta name="description" content="從一架擴充到多架：用 BFS 步數當成本，貪婪地把目標分給最近的無人機。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <script src="../data/lessons.js" defer></script>
+  <script src="../assets/js/main.js" defer></script>
+</head>
+<body data-lesson-id="04">
+
+<header class="site-header">
+  <div class="inner">
+    <a class="brand" href="../index.html"><span class="brand-mark">UAV</span>搜救任務規劃講義</a>
+    <nav><a href="../index.html">全部講義</a><a href="https://github.com/nswerr/uav-rescue-lessons">GitHub</a></nav>
+  </div>
+</header>
+
+<div class="lesson-layout">
+  <main>
+    <header class="lesson-head">
+      <p class="kicker">多機協作 ・ LESSON 04</p>
+      <h1>多架無人機怎麼分配目標</h1>
+      <p class="lead">真正的搜救不會只有一架無人機、一個待查點。當有好幾架飛機、好幾個地點時，問題多了一層：<strong>誰該去哪裡</strong>？這篇用前面學過的 BFS 當基礎，做出最簡單的分配方法，並看看它哪裡不夠好。</p>
+      <div class="info-bar">
+        <div><b>難度</b>進階</div>
+        <div><b>閱讀</b>20 分鐘</div>
+        <div><b>先備</b>第 02 篇</div>
+      </div>
+    </header>
+
+    <section class="goals">
+      <h2>學習目標</h2>
+      <ul>
+        <li>能說明為什麼分配成本要用 BFS 步數，而不是直線距離。</li>
+        <li>能手算貪婪分配法的結果。</li>
+        <li>能舉例說明貪婪分配不一定是總步數最少。</li>
+      </ul>
+    </section>
+
+    <article>
+      <h2 id="problem">一　問題變成「誰去哪裡」</h2>
+      <p>假設有 2 架無人機 U1、U2，以及 2 個待查點 A、B，每架無人機只負責一個點。可能的分配方式有兩種：U1→A、U2→B，或 U1→B、U2→A。點數變多時組合會快速增加（4 架對 4 點就有 24 種），所以需要一套規則來決定。</p>
+      <p>這類問題稱為<strong>任務分配（task assignment）</strong>，是多代理系統（multi-agent system）研究中的基本問題。</p>
+
+      <h2 id="cost">二　成本要用 BFS 步數</h2>
+      <p>最直覺的想法是「派最近的那架」，但「近」要怎麼量？下圖中，U1 和待查點 A 之間隔著一道牆：看起來只差 4 欄，實際要繞到第 7 列才過得去，共 14 步；U2 看起來比較遠，卻只要 7 步。</p>
+      <figure>
+        <div class="grid-map" data-rows="8" data-cols="8"
+             data-drones="2,2;8,7" data-targets="2,6"
+             data-blocked="1,4;2,4;3,4;4,4;5,4;6,4" data-title="直線距離會騙人"></div>
+        <figcaption>圖 1　依 BFS 步數，A 應該分給 U2（7 步），而不是看起來比較近的 U1（14 步）</figcaption>
+      </figure>
+      <div class="callout tip"><strong>重用第 02 篇的工具</strong><p>每一組（無人機, 目標）的成本，就是呼叫一次 <code>find_path</code> 得到的步數。不用寫新的找路程式。</p></div>
+
+      <h2 id="greedy">三　貪婪分配法</h2>
+      <ol class="flow">
+        <li><b>算出所有成本</b><span>每架無人機到每個目標各跑一次 BFS</span></li>
+        <li><b>挑最小的一組</b><span>步數最少的（無人機, 目標）先配對</span></li>
+        <li><b>移除已配對者</b><span>這架和這個目標都不再參與</span></li>
+        <li><b>重複到分完</b><span>沒有無人機或目標時停止</span></li>
+      </ol>
+<pre><code class="lang-python">def greedy_assign(drones, targets):
+    free_d, free_t, plan = set(drones), set(targets), []
+    while free_d and free_t:
+        best = None
+        for d in free_d:
+            for t in free_t:
+                path = find_path(d, t)
+                if path and (best is None or len(path) &lt; len(best[2])):
+                    best = (d, t, path)
+        if best is None:          # 剩下的目標都到不了
+            break
+        plan.append(best)
+        free_d.remove(best[0])
+        free_t.remove(best[1])
+    return plan</code></pre>
+
+      <h2 id="pitfall">四　貪婪不一定最好</h2>
+      <p>看下面這張沒有禁飛格的地圖：U1 在第 4 列第 2 欄、U2 在第 4 列第 5 欄；A 在第 4 列第 4 欄、B 在第 4 列第 7 欄。</p>
+      <div class="grid-map" data-rows="8" data-cols="8"
+           data-drones="4,2;4,5" data-targets="4,4;4,7"
+           data-title="貪婪分配的結果" data-interactive="true"></div>
+      <p>貪婪法第一輪看到 U2→A 只要 1 步，馬上配對；剩下 U1 只能去 B，要 5 步，總共 6 步。但如果讓 U1→A、U2→B，各只要 2 步，總共 4 步。</p>
+      <table class="data">
+        <thead><tr><th>分配方式</th><th>U1</th><th>U2</th><th>總步數</th></tr></thead>
+        <tbody>
+          <tr><td>貪婪分配</td><td>→ B，5 步</td><td>→ A，1 步</td><td>6 步</td></tr>
+          <tr><td>總步數最少</td><td>→ A，2 步</td><td>→ B，2 步</td><td>4 步</td></tr>
+        </tbody>
+      </table>
+      <p>貪婪法每一輪只看眼前最便宜的配對，沒有考慮「這一步會不會讓別人變得很貴」。在上面的互動地圖加幾個禁飛格，觀察分配結果怎麼跟著改變。</p>
+
+      <h2 id="next">五　延伸方向</h2>
+      <ul>
+        <li><strong>保證總成本最少</strong>：一對一分配可以用匈牙利演算法（Hungarian algorithm）求最佳解。</li>
+        <li><strong>避免互相碰撞</strong>：本篇假設無人機各飛各的，實際上兩條路線可能在同一時間經過同一格，需要加入時間維度一起規劃。</li>
+        <li><strong>電量與通訊</strong>：步數之外，每架飛機的剩餘電量、通訊範圍也會影響誰適合出任務。</li>
+      </ul>
+      <div class="callout note"><strong>待之後補充</strong><p>上面三個方向是後續講義的候選主題，目前尚未實作與驗證；新增講義時請依 CLAUDE.md 的流程一篇一篇補上。</p></div>
+
+      <section class="recap">
+        <h2>重點回顧</h2>
+        <ul>
+          <li>多無人機問題的核心是任務分配：誰去哪裡。</li>
+          <li>成本要用 BFS 步數，直線距離在有障礙時會誤判。</li>
+          <li>貪婪法每輪挑最便宜的配對，簡單但不保證總步數最少。</li>
+          <li>想要最佳分配可用匈牙利演算法；碰撞與電量是下一步要處理的限制。</li>
+        </ul>
+      </section>
+    </article>
+
+    <nav class="pager" data-pager></nav>
+  </main>
+
+  <aside class="toc" data-toc></aside>
+</div>
+
+<footer class="site-footer">
+  <div class="inner">
+    <span>UAV 搜救任務規劃講義 ・ 生成式 AI 課程作業</span>
+    <span>依 CLAUDE.md 規則維護</span>
+  </div>
+</footer>
+</body>
+</html>

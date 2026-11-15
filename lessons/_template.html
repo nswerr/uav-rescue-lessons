@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- 改這裡：標題格式「NN 講義標題｜UAV 搜救任務規劃講義」 -->
+  <title>NN 講義標題｜UAV 搜救任務規劃講義</title>
+  <meta name="description" content="與 data/lessons.js 的 summary 相同">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <script src="../data/lessons.js" defer></script>
+  <script src="../assets/js/main.js" defer></script>
+</head>
+<!-- 改這裡：data-lesson-id 必須等於檔名編號 -->
+<body data-lesson-id="NN">
+
+<header class="site-header">
+  <div class="inner">
+    <a class="brand" href="../index.html"><span class="brand-mark">UAV</span>搜救任務規劃講義</a>
+    <nav><a href="../index.html">全部講義</a><a href="https://github.com/nswerr/uav-rescue-lessons">GitHub</a></nav>
+  </div>
+</header>
+
+<div class="lesson-layout">
+  <main>
+    <header class="lesson-head">
+      <p class="kicker">單元名稱 ・ LESSON NN</p>
+      <h1>講義標題（與 lessons.js 的 title 相同）</h1>
+      <p class="lead">兩三句導言：這篇要解決什麼問題、和上一篇的關係。</p>
+      <div class="info-bar">
+        <div><b>難度</b>入門</div>
+        <div><b>閱讀</b>10 分鐘</div>
+        <div><b>先備</b>第 NN 篇</div>
+      </div>
+    </header>
+
+    <section class="goals">
+      <h2>學習目標</h2>
+      <ul>
+        <li>能……</li>
+        <li>能……</li>
+      </ul>
+    </section>
+
+    <article>
+      <h2 id="section-1">一　第一節標題</h2>
+      <p>內文。</p>
+
+      <div class="callout tip"><strong>小提醒</strong><p>補充說明。</p></div>
+
+      <!-- 每篇至少一個互動地圖；座標格式「列,欄」，從 1 開始 -->
+      <div class="grid-map" data-rows="8" data-cols="8" data-start="4,1" data-goal="4,8"
+           data-blocked="1,4;2,4;3,4;5,4;8,4" data-title="範例地圖" data-interactive="true"></div>
+
+      <h2 id="section-2">二　第二節標題</h2>
+      <p>內文。</p>
+
+      <section class="recap">
+        <h2>重點回顧</h2>
+        <ul>
+          <li>重點一</li>
+          <li>重點二</li>
+          <li>重點三</li>
+        </ul>
+      </section>
+    </article>
+
+    <nav class="pager" data-pager></nav>
+  </main>
+
+  <aside class="toc" data-toc></aside>
+</div>
+
+<footer class="site-footer">
+  <div class="inner">
+    <span>UAV 搜救任務規劃講義 ・ 生成式 AI 課程作業</span>
+    <span>依 CLAUDE.md 規則維護</span>
+  </div>
+</footer>
+</body>
+</html>

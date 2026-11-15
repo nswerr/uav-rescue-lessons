@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>02 BFS：找出步數最少的航線｜UAV 搜救任務規劃講義</title>
+  <meta name="description" content="由近到遠一圈一圈搜尋，第一次碰到待查點時回溯，就是最短路徑。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <script src="../data/lessons.js" defer></script>
+  <script src="../assets/js/main.js" defer></script>
+</head>
+<body data-lesson-id="02">
+
+<header class="site-header">
+  <div class="inner">
+    <a class="brand" href="../index.html"><span class="brand-mark">UAV</span>搜救任務規劃講義</a>
+    <nav><a href="../index.html">全部講義</a><a href="https://github.com/nswerr/uav-rescue-lessons">GitHub</a></nav>
+  </div>
+</header>
+
+<div class="lesson-layout">
+  <main>
+    <header class="lesson-head">
+      <p class="kicker">路徑規劃 ・ LESSON 02</p>
+      <h1>BFS：找出步數最少的航線</h1>
+      <p class="lead">有了格子地圖，下一步是讓程式自己找路。廣度優先搜尋（BFS）的想法很像丟一顆石頭進水裡：水波一圈一圈往外擴，最先碰到待查點的那一圈，就是最短的距離。</p>
+      <div class="info-bar">
+        <div><b>難度</b>基礎</div>
+        <div><b>閱讀</b>15 分鐘</div>
+        <div><b>先備</b>第 01 篇</div>
+      </div>
+    </header>
+
+    <section class="goals">
+      <h2>學習目標</h2>
+      <ul>
+        <li>能用自己的話說明 BFS 為什麼找到的是步數最少的路。</li>
+        <li>能看懂 20 行以內的 Python BFS，並說出「回溯」在做什麼。</li>
+        <li>能用同一張地圖驗證原路、改道、無路三種情況。</li>
+      </ul>
+    </section>
+
+    <article>
+      <h2 id="idea">一　直覺：一圈一圈往外找</h2>
+      <p>從起點 S 出發，先找出「走 1 步能到的格子」，再從這些格子找「走 2 步能到的格子」……每一圈都是距離起點相同步數的格子。因為是由近到遠搜尋，<strong>第一次碰到待查點 T 時，那一圈的步數就是最少步數</strong>，不可能有更短的路被漏掉。</p>
+      <p>要做到「由近到遠」，關鍵是一個<strong>佇列（queue）</strong>：先放進去的格子先拿出來處理，新發現的鄰居排到隊伍最後面。</p>
+
+      <h2 id="steps">二　演算法步驟</h2>
+      <ol class="flow">
+        <li><b>放入起點</b><span>佇列只有 S，記錄 S 沒有前一格</span></li>
+        <li><b>取出最前面</b><span>從佇列前端拿一格出來</span></li>
+        <li><b>檢查四個鄰居</b><span>在地圖內、不是禁飛格、沒走過才加入</span></li>
+        <li><b>記錄來源</b><span>寫下「這格是從哪一格來的」</span></li>
+        <li><b>到 T 就回溯</b><span>沿來源一路倒推回 S，得到路徑</span></li>
+      </ol>
+      <p>第 2～4 步會一直重複，直到拿出來的格子是 T（找到路），或佇列空了（沒有路）。</p>
+
+      <h2 id="code">三　Python 實作</h2>
+      <p>延續第 01 篇的 <code>is_free()</code>。<code>prev</code> 這個字典同時有兩個用途：記錄「走過了沒」以及「從哪裡來」。</p>
+<pre><code class="lang-python">from collections import deque
+
+def find_path(start, goal):
+    queue = deque([start])
+    prev = {start: None}                  # 走過的格子 → 從哪一格來
+    while queue:
+        cur = queue.popleft()
+        if cur == goal:                   # 第一次碰到 T：回溯
+            path = []
+            while cur is not None:
+                path.append(cur)
+                cur = prev[cur]
+            return path[::-1]
+        r, c = cur
+        for nxt in [(r, c+1), (r+1, c), (r-1, c), (r, c-1)]:
+            if is_free(nxt) and nxt not in prev:
+                prev[nxt] = cur
+                queue.append(nxt)
+    return None                           # 佇列空了：無可行路徑</code></pre>
+      <p>步數是路徑長度減 1，因為路徑同時包含起點和終點：<code>len(path) - 1</code>。</p>
+      <div class="callout tip"><strong>為什麼要有 <code>nxt not in prev</code></strong><p>沒有這個檢查，程式會在兩格之間來回跳，佇列永遠排不完。每一格只需要被發現一次，因為第一次發現時的步數就已經是最少的。</p></div>
+
+      <h2 id="reroute">四　同一張地圖的改道試算</h2>
+      <p>下面兩張地圖都從 S（第 4 列第 1 欄）出發，前往 T（第 4 列第 8 欄）。右邊多封鎖了第 4 列第 4 欄，原本的直線被擋住，BFS 自動找出繞第 6 列的路。</p>
+      <figure>
+        <div class="map-pair">
+          <div class="grid-map" data-rows="8" data-cols="8" data-start="4,1" data-goal="4,8"
+               data-blocked="1,4;2,4;3,4;5,4;8,4" data-title="原路開放"></div>
+          <div class="grid-map" data-rows="8" data-cols="8" data-start="4,1" data-goal="4,8"
+               data-blocked="1,4;2,4;3,4;4,4;5,4;8,4" data-title="第 4 列通道封閉"></div>
+        </div>
+        <figcaption>圖 1　同樣的起點與待查點，封鎖一格後路線由 7 步變成 11 步</figcaption>
+      </figure>
+      <table class="data">
+        <thead><tr><th>測試情境</th><th>更動方式</th><th>BFS 結果</th></tr></thead>
+        <tbody>
+          <tr><td>原路開放</td><td>載入預設地圖</td><td>沿第 4 列前進，共 7 步。</td></tr>
+          <tr><td>原路封閉</td><td>封鎖第 4 列第 4 欄</td><td>改從第 6 列通過，共 11 步。</td></tr>
+          <tr><td>左右完全隔開</td><td>再封鎖第 6、7 列第 4 欄</td><td>顯示「無可行路徑」。</td></tr>
+        </tbody>
+      </table>
+      <p>自己驗證第三種情況：在下面的地圖點第 4、6、7 列第 4 欄。</p>
+      <div class="grid-map" data-rows="8" data-cols="8" data-start="4,1" data-goal="4,8"
+           data-blocked="1,4;2,4;3,4;5,4;8,4" data-title="自己封鎖看看" data-interactive="true"></div>
+
+      <h2 id="limits">五　BFS 的適用範圍</h2>
+      <p>BFS 保證最短，是建立在「每一步成本都一樣」的前提上。如果某些格子比較難飛（例如逆風區要算 3 步），一圈一圈的步數就不再等於成本，這時要改用 Dijkstra 演算法；若想利用「目標在右邊」這種方向資訊加快搜尋，則可以用 A*。</p>
+      <div class="callout note"><strong>本站的取捨</strong><p>期末專案第一版只有 64 格，BFS 已經瞬間算完。先把正確性驗證清楚，再考慮換演算法。</p></div>
+
+      <section class="recap">
+        <h2>重點回顧</h2>
+        <ul>
+          <li>BFS 用佇列由近到遠搜尋，第一次碰到待查點時步數最少。</li>
+          <li><code>prev</code> 字典同時記錄「走過沒」與「從哪來」，最後倒推出路徑。</li>
+          <li>範例地圖：原路 7 步、封鎖第 4 列第 4 欄後 11 步、左右隔開則無路。</li>
+          <li>每步成本不同時要改用 Dijkstra 或 A*。</li>
+        </ul>
+      </section>
+    </article>
+
+    <nav class="pager" data-pager></nav>
+  </main>
+
+  <aside class="toc" data-toc></aside>
+</div>
+
+<footer class="site-footer">
+  <div class="inner">
+    <span>UAV 搜救任務規劃講義 ・ 生成式 AI 課程作業</span>
+    <span>依 CLAUDE.md 規則維護</span>
+  </div>
+</footer>
+</body>
+</html>
